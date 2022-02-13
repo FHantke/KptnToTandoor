@@ -6,10 +6,11 @@ from urllib.parse import urlparse
 
 # TODO error handling...
 
-def get_kptn_recipe(uid):
+def get_kptn_recipe(uid, language):
     """ Get the recipe JSON from KptnCook """
 
-    url = "https://mobile.kptncook.com:443/recipes/search?lang=de&store=de"
+    # Mby parameter store is important, but until now, it worked fine...
+    url = f"https://mobile.kptncook.com:443/recipes/search?lang={language}&store=de"
     headers = {
         "hasIngredients": "YES",
         "kptnkey": "6q7QNKy-oIgk-IMuWisJ-jfN7s6",
@@ -18,12 +19,13 @@ def get_kptn_recipe(uid):
     }
 
     res = requests.post(url, headers=headers, json=[{"uid": uid}])   
-    if res.status_code != 200:
-        return None
+    if res.status_code != 200 or "title" not in res.json()[0]:
+        print(res.text)
+        sys.exit(1)
 
     return res.json()
 
-def import_recipe(host, auth, data, with_time=False):
+def import_recipe(host, auth, data, with_time=False, units="metric"):
     """ Take the KptnCook JSON and translate it to Tandoor """
 
     headers = {"Authorization": "Token " + auth}
@@ -108,14 +110,17 @@ def import_recipe(host, auth, data, with_time=False):
             ingredient["unit"] = None
             ingredient["no_amount"] = True
 
-            # Parse measures and units 
+            # Parse measures and units             
+            q = "metricQuantity" if units=="metric" else "imperialQuantity"
+            m = "metricMeasure" if units=="metric" else "imperialMeasure"
+
             if "unit" in ing:                
-                ingredient["amount"] = ing["unit"]["quantity"]
+                ingredient["amount"] = ing["unit"][q]
                 ingredient["no_amount"] = False
                 if "measure" in ing["unit"]:
-                    ingredient["unit"] = {"name": ing["unit"]["measure"]}
+                    ingredient["unit"] = {"name": ing["unit"][m]}
             elif "quantity" in ing:
-                ingredient["amount"] = ing["quantity"]
+                ingredient["amount"] = ing[q]
                 ingredient["no_amount"] = False
             
             # Add ingredient
@@ -136,8 +141,8 @@ def import_recipe(host, auth, data, with_time=False):
         sys.exit(1)
 
     # Get recipe id to upload the cover image
-    res_data = res.json()
-    rid = res_data["id"]
+    tandoor_recipe_json = res.json()
+    rid = tandoor_recipe_json["id"]
     img_api_url = host.strip("/") + f"/api/recipe/{rid}/image/"
     
     # Loading the cover image from KptnCook
@@ -157,8 +162,9 @@ def import_recipe(host, auth, data, with_time=False):
         sys.exit(1)
 
     # Link cover image with recipe
-    d["file_path"] = host.strip("/") + res.json()["image"]    
-    res = requests.put(recipe_api_url + str(rid), headers=headers, json=d)
+    tandoor_recipe_json["image"] = host.strip("/") + res.json()["image"]
+
+    res = requests.put(recipe_api_url + str(rid) + "/", headers=headers, json=tandoor_recipe_json)
     if res.status_code != 200:
         print(res.text)
         sys.exit(1)
@@ -168,8 +174,12 @@ def import_recipe(host, auth, data, with_time=False):
 @click.argument('host')
 @click.argument('api_key')
 @click.argument('src')
+@click.option('--language', default="de", help='choose the language',
+                type=click.Choice(['de', 'en']))
+@click.option('--units', default="metric", help='choose the untis',
+                type=click.Choice(['metric', 'imperial']))
 @click.option('--with_time', default=False, help='import time into recipes')
-def main(host, api_key, src, with_time):
+def main(host, api_key, src, language, units, with_time):
     """Request a recipe (<SRC>) from KptnCook and
        import it into the Tandoor cookbook on <HOST>
        using the Tandoor <API_KEY>.
@@ -184,15 +194,13 @@ def main(host, api_key, src, with_time):
         uid = u.path.split("/")[-1]
         print(f"Loading recipe from {res.url}")
 
+    # Get recipe
     print(f"UID: {uid}")
-    data = get_kptn_recipe(uid)
+    data = get_kptn_recipe(uid, language)
 
-    if not data:
-        print("No data were parsed")
-        sys.exit(1)
-
+    # Parse recipe
     print(f"Start parsing and uploading")
-    import_recipe(host, api_key, data[0], with_time=with_time)
+    import_recipe(host, api_key, data[0], with_time=with_time, units=units)
     
     print(f"Done!")
 
