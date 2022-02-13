@@ -24,7 +24,9 @@ Either the KptnCook recipe sharing URL can be used to parse a recipe:
     python main.py https://my-tandoor-server.de/ TANDOOR_API_KEY https://sharing.kptncook.com/IJ7UqFSDCnb
 ```
 
-Or the recipe id can be used:
+Or the recipe id can be used.
+This can be found when searching for the recipes online (last part of the url):
+https://mobile.kptncook.com/recipe/pinterest/kurbisragout-pasta-mit-getrockneten-tomaten/1cbb478
 ```
-    python main.py https://my-tandoor-server.de/ TANDOOR_API_KEY 4ec60c5d
+    python main.py https://my-tandoor-server.de/ TANDOOR_API_KEY 1cbb478
 ```
