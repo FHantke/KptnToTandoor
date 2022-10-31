@@ -28,7 +28,7 @@ def get_kptn_recipe(uid, language):
 def import_recipe(host, auth, data, with_time=False, units="metric"):
     """ Take the KptnCook JSON and translate it to Tandoor """
 
-    headers = {"Authorization": "Token " + auth}
+    headers = {"Authorization": "Bearer " + auth}
 
     # d is the final JSON
     d = {}
