@@ -114,13 +114,21 @@ def import_recipe(host, auth, data, with_time=False, units="metric"):
             q = "metricQuantity" if units=="metric" else "imperialQuantity"
             m = "metricMeasure" if units=="metric" else "imperialMeasure"
 
-            if "unit" in ing:                
-                ingredient["amount"] = ing["unit"][q]
-                ingredient["no_amount"] = False
-                if "measure" in ing["unit"]:
-                    ingredient["unit"] = {"name": ing["unit"][m]}
+            if "unit" in ing:
+                # Fix: .get() nutzen, da Salz/Pfeffer oft keine Quantity haben
+                amount = ing["unit"].get(q)
+                if amount is not None:
+                    ingredient["amount"] = amount
+                    ingredient["no_amount"] = False
+                
+                # Fix: Auch Measure sicher abrufen
+                measure = ing["unit"].get(m)
+                if measure:
+                    ingredient["unit"] = {"name": measure}
+                    
             elif "quantity" in ing:
-                ingredient["amount"] = ing[q]
+                # Fallback für alte API-Struktur
+                ingredient["amount"] = ing.get(q, 0)
                 ingredient["no_amount"] = False
             
             # Add ingredient
